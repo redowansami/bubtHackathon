@@ -42,7 +42,7 @@ class ConsumptionService {
         success: true,
         message: 'History retrieved',
         statusCode: 200,
-        data: result,
+        data: result.logs, // Return just the logs array
       };
     } catch (error) {
       return {

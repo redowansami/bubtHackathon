@@ -39,6 +39,24 @@ export const Navbar = () => {
                                     Dashboard
                                 </Link>
                                 <Link
+                                    to="/inventory"
+                                    className="hover:text-primary-100 transition-colors"
+                                >
+                                    Inventory
+                                </Link>
+                                <Link
+                                    to="/logs"
+                                    className="hover:text-primary-100 transition-colors"
+                                >
+                                    Logs
+                                </Link>
+                                <Link
+                                    to="/resources"
+                                    className="hover:text-primary-100 transition-colors"
+                                >
+                                    Resources
+                                </Link>
+                                <Link
                                     to="/profile"
                                     className="hover:text-primary-100 transition-colors"
                                 >
@@ -93,6 +111,27 @@ export const Navbar = () => {
                                     onClick={() => setIsMenuOpen(false)}
                                 >
                                     Dashboard
+                                </Link>
+                                <Link
+                                    to="/inventory"
+                                    className="block px-4 py-2 hover:bg-primary-700 rounded transition-colors"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    Inventory
+                                </Link>
+                                <Link
+                                    to="/logs"
+                                    className="block px-4 py-2 hover:bg-primary-700 rounded transition-colors"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    Logs
+                                </Link>
+                                <Link
+                                    to="/resources"
+                                    className="block px-4 py-2 hover:bg-primary-700 rounded transition-colors"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    Resources
                                 </Link>
                                 <Link
                                     to="/profile"

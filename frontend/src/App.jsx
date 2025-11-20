@@ -9,6 +9,9 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
+import Inventory from './pages/Inventory';
+import ConsumptionLogs from './pages/ConsumptionLogs';
+import Resources from './pages/Resources';
 
 function App() {
     return (
@@ -21,6 +24,9 @@ function App() {
                     <Route path="/register" element={<Register />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/profile" element={<Profile />} />
+                    <Route path="/inventory" element={<Inventory />} />
+                    <Route path="/logs" element={<ConsumptionLogs />} />
+                    <Route path="/resources" element={<Resources />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </AuthProvider>

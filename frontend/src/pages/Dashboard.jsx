@@ -1,16 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Package, TrendingDown, Activity, BookOpen, Plus } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Layout from '../components/layout/Layout';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
+import inventoryService from '../services/inventoryService';
+import consumptionService from '../services/consumptionService';
+import resourceService from '../services/resourceService';
+import { formatDate } from '../utils/constants';
 
 export const Dashboard = () => {
     const { user } = useAuth();
-
-    const stats = [
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState([
         {
             icon: Package,
             label: 'Total Inventory Items',
@@ -35,7 +40,101 @@ export const Dashboard = () => {
             value: 0,
             color: 'bg-accent-100 text-accent-600',
         },
-    ];
+    ]);
+    const [recentLogs, setRecentLogs] = useState([]);
+    const [expiringItems, setExpiringItems] = useState([]);
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const fetchDashboardData = async () => {
+        setLoading(true);
+        try {
+            // Fetch inventory stats
+            const inventoryRes = await inventoryService.getInventory();
+            const expiringRes = await inventoryService.getExpiringItems();
+            
+            // Fetch consumption logs
+            const consumptionRes = await consumptionService.getRecent();
+            
+            // Fetch resources
+            const resourcesRes = await resourceService.getAllResources();
+
+            if (inventoryRes.success && expiringRes.success && consumptionRes.success && resourcesRes.success) {
+                const inventoryItems = Array.isArray(inventoryRes.data) ? inventoryRes.data : [];
+                const expiringItemsList = Array.isArray(expiringRes.data) ? expiringRes.data : [];
+                const consumptionLogs = Array.isArray(consumptionRes.data) ? consumptionRes.data : [];
+                const resourcesList = Array.isArray(resourcesRes.data) ? resourcesRes.data : [];
+
+                // Update stats
+                setStats([
+                    {
+                        icon: Package,
+                        label: 'Total Inventory Items',
+                        value: inventoryItems.length,
+                        color: 'bg-blue-100 text-blue-600',
+                    },
+                    {
+                        icon: TrendingDown,
+                        label: 'Items Expiring Soon',
+                        value: expiringItemsList.length,
+                        color: 'bg-red-100 text-red-600',
+                    },
+                    {
+                        icon: Activity,
+                        label: 'Consumption Logs This Week',
+                        value: consumptionLogs.length,
+                        color: 'bg-green-100 text-green-600',
+                    },
+                    {
+                        icon: BookOpen,
+                        label: 'Resources Available',
+                        value: resourcesList.length,
+                        color: 'bg-accent-100 text-accent-600',
+                    },
+                ]);
+
+                setRecentLogs(consumptionLogs.slice(0, 5));
+                setExpiringItems(expiringItemsList.slice(0, 5));
+            } else {
+                setStats([
+                    {
+                        icon: Package,
+                        label: 'Total Inventory Items',
+                        value: 0,
+                        color: 'bg-blue-100 text-blue-600',
+                    },
+                    {
+                        icon: TrendingDown,
+                        label: 'Items Expiring Soon',
+                        value: 0,
+                        color: 'bg-red-100 text-red-600',
+                    },
+                    {
+                        icon: Activity,
+                        label: 'Consumption Logs This Week',
+                        value: 0,
+                        color: 'bg-green-100 text-green-600',
+                    },
+                    {
+                        icon: BookOpen,
+                        label: 'Resources Available',
+                        value: 0,
+                        color: 'bg-accent-100 text-accent-600',
+                    },
+                ]);
+                setRecentLogs([]);
+                setExpiringItems([]);
+            }
+        } catch (error) {
+            toast.error('Failed to load dashboard data');
+            setRecentLogs([]);
+            setExpiringItems([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const quickActions = [
         {
@@ -57,6 +156,18 @@ export const Dashboard = () => {
             color: 'primary',
         },
     ];
+
+    if (loading) {
+        return (
+            <ProtectedRoute>
+                <Layout>
+                    <div className="flex justify-center items-center py-12">
+                        <p className="text-gray-600">Loading dashboard...</p>
+                    </div>
+                </Layout>
+            </ProtectedRoute>
+        );
+    }
 
     return (
         <ProtectedRoute>
@@ -108,17 +219,65 @@ export const Dashboard = () => {
                     </div>
                 </div>
 
+                {/* Expiring Items Section */}
+                {expiringItems.length > 0 && (
+                    <div className="mb-12">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-6">Items Expiring Soon</h2>
+                        <Card>
+                            <div className="space-y-4">
+                                {expiringItems.map((item) => (
+                                    <div
+                                        key={item._id}
+                                        className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200"
+                                    >
+                                        <div>
+                                            <h4 className="font-semibold text-gray-900">{item.itemName}</h4>
+                                            <p className="text-sm text-gray-600">
+                                                Expires: {formatDate(item.expiryDate)}
+                                            </p>
+                                        </div>
+                                        <span className="text-sm font-bold text-red-600">
+                                            {item.expirationDays} days left
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
+                    </div>
+                )}
+
                 {/* Recent Activity */}
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Activity</h2>
                     <Card>
-                        <div className="text-center py-12">
-                            <Activity size={48} className="text-gray-300 mx-auto mb-4" />
-                            <p className="text-gray-600 text-lg">No activity yet</p>
-                            <p className="text-gray-500 text-sm mt-2">
-                                Start by adding items to your inventory or logging consumption
-                            </p>
-                        </div>
+                        {recentLogs.length === 0 ? (
+                            <div className="text-center py-12">
+                                <Activity size={48} className="text-gray-300 mx-auto mb-4" />
+                                <p className="text-gray-600 text-lg">No activity yet</p>
+                                <p className="text-gray-500 text-sm mt-2">
+                                    Start by adding items to your inventory or logging consumption
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {recentLogs.map((log) => (
+                                    <div
+                                        key={log._id}
+                                        className="flex items-center justify-between p-4 border-b border-gray-200 last:border-b-0"
+                                    >
+                                        <div>
+                                            <h4 className="font-semibold text-gray-900">{log.itemName}</h4>
+                                            <p className="text-sm text-gray-600">
+                                                {log.category} • {formatDate(log.date)}
+                                            </p>
+                                        </div>
+                                        <span className="text-sm font-bold text-primary-600">
+                                            Qty: {log.quantity}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </Card>
                 </div>
             </Layout>

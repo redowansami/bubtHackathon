@@ -44,7 +44,7 @@ class ResourceService {
         success: true,
         message: 'Resources retrieved',
         statusCode: 200,
-        data: result,
+        data: result.resources, // Return just the resources array
       };
     } catch (error) {
       return {
@@ -70,7 +70,7 @@ class ResourceService {
         success: true,
         message: 'Resources retrieved',
         statusCode: 200,
-        data: result,
+        data: result.resources, // Return just the resources array
       };
     } catch (error) {
       return {

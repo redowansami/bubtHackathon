@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { Leaf, TrendingDown, Zap, Book } from 'lucide-react';
 import Button from '../components/common/Button';
 import Layout from '../components/layout/Layout';
+import { useAuth } from '../context/AuthContext';
 
 export const Home = () => {
+    const { isAuthenticated } = useAuth();
     const features = [
         {
             icon: TrendingDown,
@@ -39,14 +41,29 @@ export const Home = () => {
                         making a positive impact on the environment.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <Link to="/register">
-                            <Button className="px-8 py-3 text-lg">Get Started</Button>
-                        </Link>
-                        <Link to="/login">
-                            <Button variant="secondary" className="px-8 py-3 text-lg">
-                                Login
-                            </Button>
-                        </Link>
+                        {isAuthenticated ? (
+                            <>
+                                <Link to="/dashboard">
+                                    <Button className="px-8 py-3 text-lg">Go to Dashboard</Button>
+                                </Link>
+                                <Link to="/resources">
+                                    <Button variant="secondary" className="px-8 py-3 text-lg">
+                                        Explore Resources
+                                    </Button>
+                                </Link>
+                            </>
+                        ) : (
+                            <>
+                                <Link to="/register">
+                                    <Button className="px-8 py-3 text-lg">Get Started</Button>
+                                </Link>
+                                <Link to="/login">
+                                    <Button variant="secondary" className="px-8 py-3 text-lg">
+                                        Login
+                                    </Button>
+                                </Link>
+                            </>
+                        )}
                     </div>
                 </div>
             </section>
@@ -83,11 +100,14 @@ export const Home = () => {
             <section className="bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl p-12 text-center my-16">
                 <h2 className="text-3xl font-bold mb-4">Ready to Make a Difference?</h2>
                 <p className="text-lg mb-8 text-primary-50">
-                    Start your journey towards sustainable food management today.
+                    {isAuthenticated 
+                        ? 'Continue managing your food and reducing waste sustainably.'
+                        : 'Start your journey towards sustainable food management today.'
+                    }
                 </p>
-                <Link to="/register">
+                <Link to={isAuthenticated ? '/dashboard' : '/register'}>
                     <Button className="bg-white text-primary-600 hover:bg-primary-50">
-                        Join Us Now
+                        {isAuthenticated ? 'Go to Dashboard' : 'Join Us Now'}
                     </Button>
                 </Link>
             </section>

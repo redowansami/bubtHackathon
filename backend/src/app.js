@@ -12,6 +12,7 @@ const consumptionRoutes = require('./routes/consumptionRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const chatbotRoutes = require('./routes/chatbotRoutes');
 
 // Initialize Express app
 const app = express();
@@ -38,6 +39,7 @@ app.use('/api/v1/consumption', consumptionRoutes);
 app.use('/api/v1/resources', resourceRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/chatbot', chatbotRoutes);
 
 // 404 Route
 app.use((req, res) => {

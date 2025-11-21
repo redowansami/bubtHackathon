@@ -34,4 +34,9 @@ module.exports = {
     'dairy-free',
     'no-preference',
   ],
+
+  // OpenRouter AI Configuration
+  OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
+  OPENROUTER_API_URL: process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions',
+  CHATBOT_MODEL: process.env.CHATBOT_MODEL || 'x-ai/grok-4.1-fast:free',
 };

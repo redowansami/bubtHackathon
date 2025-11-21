@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, AlertCircle, TrendingUp, Calendar, Package, Zap, Clock, CheckCircle, AlertOctagon } from 'lucide-react';
+import { AlertTriangle, AlertCircle, TrendingUp, Calendar, Package, Zap, Clock, CheckCircle, AlertOctagon, Bell, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from '../components/common/Card';
 import Layout from '../components/layout/Layout';
@@ -11,6 +11,7 @@ import { formatDate } from '../utils/constants';
 export const RiskPrediction = () => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [showAlerts, setShowAlerts] = useState(false);
     const [summary, setSummary] = useState({
         criticalCount: 0,
         highRiskCount: 0,
@@ -135,6 +136,104 @@ export const RiskPrediction = () => {
                         AI-powered analysis of your inventory items based on expiration dates, categories, and consumption patterns
                     </p>
                 </div>
+
+                {/* Alerts Button and Panel */}
+                <div className="mb-8">
+                    <button
+                        onClick={() => setShowAlerts(!showAlerts)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-semibold"
+                    >
+                        <Bell size={20} />
+                        Alerts
+                        {summary.criticalCount + summary.highRiskCount > 0 && (
+                            <span className="ml-2 inline-flex items-center justify-center w-6 h-6 bg-red-600 text-white rounded-full text-xs font-bold">
+                                {summary.criticalCount + summary.highRiskCount}
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                {/* Alerts Notification Panel */}
+                {showAlerts && (
+                    <Card className="mb-8 border-l-4" style={{ borderLeftColor: '#dc2626' }}>
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                    <AlertOctagon size={24} className="text-red-600" />
+                                    High Risk Alerts
+                                </h2>
+                                <p className="text-gray-600 text-sm mt-1">
+                                    {summary.criticalCount + summary.highRiskCount} items need your attention
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowAlerts(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                            {items
+                                .filter(
+                                    (item) => {
+                                        const level = riskPredictionService.getRiskLevel(item.riskScore);
+                                        return level === 'CRITICAL' || level === 'HIGH';
+                                    }
+                                )
+                                .map((item) => {
+                                    const level = riskPredictionService.getRiskLevel(item.riskScore);
+                                    const icon = riskPredictionService.getRiskLevelIcon(level);
+                                    const color = riskPredictionService.getRiskLevelColor(level);
+
+                                    return (
+                                        <div
+                                            key={item._id}
+                                            className="p-3 rounded-lg border-l-4"
+                                            style={{
+                                                backgroundColor: riskPredictionService.getRiskLevelBgColor(level),
+                                                borderLeftColor: color,
+                                            }}
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <span className="text-2xl mt-1">{icon}</span>
+                                                <div className="flex-1">
+                                                    <p className="font-semibold text-gray-900">
+                                                        {item.itemName}
+                                                        <span
+                                                            style={{ color }}
+                                                            className="ml-2 text-sm font-bold"
+                                                        >
+                                                            {level}
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-sm text-gray-600">
+                                                        Risk Score: {item.riskScore.toFixed(1)}/100 • Days Left: {item.expirationDays}
+                                                    </p>
+                                                    <p className="text-sm text-gray-700 mt-1">
+                                                        {riskPredictionService.getRecommendedAction(level, item)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            {items.filter(
+                                (item) => {
+                                    const level = riskPredictionService.getRiskLevel(item.riskScore);
+                                    return level === 'CRITICAL' || level === 'HIGH';
+                                }
+                            ).length === 0 && (
+                                <div className="text-center py-8 text-gray-600">
+                                    <CheckCircle size={48} className="mx-auto mb-2 text-green-500" />
+                                    <p className="font-semibold">All clear! ✓</p>
+                                    <p className="text-sm">No high-risk items at the moment</p>
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+                )}
 
                 {/* Summary Statistics */}
                 {!loading && items.length > 0 && (

@@ -1,6 +1,7 @@
 import React from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import FloatingChatButton from '../chatbot/FloatingChatButton';
 
 export const Layout = ({ children }) => {
     return (
@@ -10,6 +11,7 @@ export const Layout = ({ children }) => {
                 {children}
             </main>
             <Footer />
+            <FloatingChatButton />
         </div>
     );
 };

@@ -28,11 +28,6 @@ const categories = [
 router.post(
   '/',
   [
-    body('inventoryItemId')
-      .notEmpty()
-      .withMessage('Inventory item ID is required')
-      .isMongoId()
-      .withMessage('Invalid inventory item ID'),
     body('itemName')
       .trim()
       .notEmpty()
@@ -47,8 +42,8 @@ router.post(
     body('quantity')
       .notEmpty()
       .withMessage('Quantity is required')
-      .isInt({ min: 1 })
-      .withMessage('Quantity must be at least 1'),
+      .isInt({ min: 0 })
+      .withMessage('Quantity must be a non-negative integer'),
     body('date')
       .optional()
       .isISO8601()
@@ -102,8 +97,8 @@ router.put(
       .withMessage('Invalid category'),
     body('quantity')
       .optional()
-      .isInt({ min: 1 })
-      .withMessage('Quantity must be at least 1'),
+      .isInt({ min: 0 })
+      .withMessage('Quantity must be a non-negative integer'),
     body('date')
       .optional()
       .isISO8601()

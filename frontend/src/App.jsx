@@ -12,6 +12,7 @@ import Profile from './pages/Profile';
 import Inventory from './pages/Inventory';
 import ConsumptionLogs from './pages/ConsumptionLogs';
 import Resources from './pages/Resources';
+import RiskPrediction from './pages/RiskPrediction';
 
 function App() {
     return (
@@ -27,6 +28,7 @@ function App() {
                     <Route path="/inventory" element={<Inventory />} />
                     <Route path="/logs" element={<ConsumptionLogs />} />
                     <Route path="/resources" element={<Resources />} />
+                    <Route path="/risk-prediction" element={<RiskPrediction />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </AuthProvider>

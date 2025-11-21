@@ -8,6 +8,7 @@ import Modal from '../components/common/Modal';
 import Layout from '../components/layout/Layout';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import consumptionService from '../services/consumptionService';
+import inventoryService from '../services/inventoryService';
 import { formatDate } from '../utils/constants';
 
 const CATEGORIES = [
@@ -26,13 +27,16 @@ const CATEGORIES = [
 
 export const ConsumptionLogs = () => {
     const [logs, setLogs] = useState([]);
+    const [inventoryItems, setInventoryItems] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [errors, setErrors] = useState({});
     const [filterCategory, setFilterCategory] = useState('All');
     const [dateRange, setDateRange] = useState('all');
+    const [selectedInventoryItem, setSelectedInventoryItem] = useState(null);
     const [formData, setFormData] = useState({
+        inventoryItemId: '',
         itemName: '',
         category: 'Vegetables',
         quantity: '',
@@ -41,41 +45,92 @@ export const ConsumptionLogs = () => {
     });
 
     useEffect(() => {
-        fetchLogs();
+        fetchData();
     }, []);
 
-    const fetchLogs = async () => {
+    const fetchData = async () => {
         setLoading(true);
         try {
-            const response = await consumptionService.getHistory();
-            if (response.success) {
-                setLogs(Array.isArray(response.data) ? response.data : []);
+            const [logsResponse, inventoryResponse] = await Promise.all([
+                consumptionService.getHistory(),
+                inventoryService.getInventory(),
+            ]);
+
+            if (logsResponse.success) {
+                setLogs(Array.isArray(logsResponse.data) ? logsResponse.data : []);
             } else {
                 setLogs([]);
             }
+
+            if (inventoryResponse.success) {
+                const items = Array.isArray(inventoryResponse.data) ? inventoryResponse.data : [];
+                setInventoryItems(items.filter((item) => item.quantity > 0));
+            } else {
+                setInventoryItems([]);
+            }
         } catch (error) {
-            toast.error('Failed to load consumption logs');
+            toast.error('Failed to load data');
             setLogs([]);
+            setInventoryItems([]);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleInventoryItemSelect = (e) => {
+        const itemId = e.target.value;
+        const item = inventoryItems.find((inv) => inv._id === itemId);
+
+        if (item) {
+            setSelectedInventoryItem(item);
+            setFormData((prev) => ({
+                ...prev,
+                inventoryItemId: item._id,
+                itemName: item.itemName,
+                category: item.category,
+                quantity: '',
+            }));
+        } else {
+            setSelectedInventoryItem(null);
+            setFormData((prev) => ({
+                ...prev,
+                inventoryItemId: '',
+                itemName: '',
+                category: 'Vegetables',
+                quantity: '',
+            }));
+        }
+
+        if (errors.inventoryItemId) {
+            setErrors((prev) => ({
+                ...prev,
+                inventoryItemId: '',
+            }));
+        }
+    };
+
     const validateForm = () => {
         const newErrors = {};
-        if (!formData.itemName.trim()) {
-            newErrors.itemName = 'Item name is required';
-        } else if (formData.itemName.trim().length < 2) {
-            newErrors.itemName = 'Item name must be at least 2 characters';
+
+        if (!formData.inventoryItemId) {
+            newErrors.inventoryItemId = 'Please select an inventory item';
         }
+
         if (!formData.quantity) {
             newErrors.quantity = 'Quantity is required';
-        } else if (parseInt(formData.quantity) < 0) {
-            newErrors.quantity = 'Quantity cannot be negative';
+        } else {
+            const qty = parseInt(formData.quantity);
+            if (qty < 1) {
+                newErrors.quantity = 'Quantity must be at least 1';
+            } else if (selectedInventoryItem && qty > selectedInventoryItem.quantity) {
+                newErrors.quantity = `Cannot exceed available quantity (${selectedInventoryItem.quantity})`;
+            }
         }
+
         if (!formData.date) {
             newErrors.date = 'Date is required';
         }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -100,8 +155,12 @@ export const ConsumptionLogs = () => {
 
         try {
             const dataToSubmit = {
-                ...formData,
+                inventoryItemId: formData.inventoryItemId,
+                itemName: formData.itemName,
+                category: formData.category,
+                quantity: parseInt(formData.quantity),
                 date: formData.date ? new Date(formData.date).toISOString() : undefined,
+                notes: formData.notes || '',
             };
 
             if (editingId) {
@@ -109,12 +168,17 @@ export const ConsumptionLogs = () => {
                 if (response.success) {
                     toast.success('Log updated successfully!');
                     setLogs(logs.map((log) => (log._id === editingId ? response.data : log)));
+                } else {
+                    toast.error(response.message || 'Failed to update log');
                 }
             } else {
                 const response = await consumptionService.logConsumption(dataToSubmit);
                 if (response.success) {
                     toast.success('Consumption logged successfully!');
                     setLogs([...logs, response.data]);
+                    await fetchData();
+                } else {
+                    toast.error(response.message || 'Failed to log consumption');
                 }
             }
             resetForm();
@@ -125,7 +189,10 @@ export const ConsumptionLogs = () => {
     };
 
     const handleEdit = (log) => {
+        const item = inventoryItems.find((inv) => inv._id === log.inventoryItemId);
+        setSelectedInventoryItem(item);
         setFormData({
+            inventoryItemId: log.inventoryItemId,
             itemName: log.itemName,
             category: log.category,
             quantity: log.quantity.toString(),
@@ -137,12 +204,15 @@ export const ConsumptionLogs = () => {
     };
 
     const handleDelete = async (logId) => {
-        if (window.confirm('Are you sure you want to delete this log entry?')) {
+        if (window.confirm('Are you sure you want to delete this log entry? This will restore the inventory quantity.')) {
             try {
                 const response = await consumptionService.deleteLog(logId);
                 if (response.success) {
-                    toast.success('Log deleted successfully!');
+                    toast.success('Log deleted and inventory restored!');
                     setLogs(logs.filter((log) => log._id !== logId));
+                    await fetchData();
+                } else {
+                    toast.error(response.message || 'Failed to delete log');
                 }
             } catch (error) {
                 toast.error('Failed to delete log');
@@ -152,12 +222,14 @@ export const ConsumptionLogs = () => {
 
     const resetForm = () => {
         setFormData({
+            inventoryItemId: '',
             itemName: '',
             category: 'Vegetables',
             quantity: '',
             date: new Date().toISOString().split('T')[0],
             notes: '',
         });
+        setSelectedInventoryItem(null);
         setEditingId(null);
         setErrors({});
     };
@@ -208,11 +280,26 @@ export const ConsumptionLogs = () => {
                             setIsModalOpen(true);
                         }}
                         className="mt-4 md:mt-0"
+                        disabled={inventoryItems.length === 0}
                     >
                         <Plus size={20} />
                         Log Consumption
                     </Button>
                 </div>
+
+                {inventoryItems.length === 0 && (
+                    <Card className="mb-6 bg-blue-50 border-blue-200">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="text-blue-600 flex-shrink-0 mt-1" size={20} />
+                            <div>
+                                <p className="font-semibold text-blue-900">No inventory items available</p>
+                                <p className="text-blue-800 text-sm mt-1">
+                                    Add items to your inventory first before logging consumption.
+                                </p>
+                            </div>
+                        </div>
+                    </Card>
+                )}
 
                 {/* Add/Edit Modal */}
                 <Modal
@@ -221,44 +308,63 @@ export const ConsumptionLogs = () => {
                     title={editingId ? 'Edit Log' : 'Log Consumption'}
                 >
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <Input
-                            label="Item Name"
-                            type="text"
-                            name="itemName"
-                            value={formData.itemName}
-                            onChange={handleChange}
-                            error={errors.itemName}
-                            required
-                        />
-
                         <div>
-                            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                                Category <span className="text-red-600">*</span>
+                            <label htmlFor="inventoryItemId" className="block text-sm font-medium text-gray-700 mb-2">
+                                Select Item from Inventory <span className="text-red-600">*</span>
                             </label>
                             <select
-                                id="category"
-                                name="category"
-                                value={formData.category}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                id="inventoryItemId"
+                                value={formData.inventoryItemId}
+                                onChange={handleInventoryItemSelect}
+                                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                                    errors.inventoryItemId ? 'border-red-500' : 'border-gray-300'
+                                }`}
                                 required
                             >
-                                {CATEGORIES.map((cat) => (
-                                    <option key={cat} value={cat}>
-                                        {cat}
+                                <option value="">-- Select an inventory item --</option>
+                                {inventoryItems.map((item) => (
+                                    <option key={item._id} value={item._id}>
+                                        {item.itemName} ({item.category}) - Available: {item.quantity}
                                     </option>
                                 ))}
                             </select>
+                            {errors.inventoryItemId && (
+                                <p className="text-red-500 text-sm mt-1">{errors.inventoryItemId}</p>
+                            )}
                         </div>
 
+                        {selectedInventoryItem && (
+                            <Card className="bg-primary-50 border-primary-200">
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Item:</span>
+                                        <span className="font-semibold">{selectedInventoryItem.itemName}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Category:</span>
+                                        <span className="font-semibold">{selectedInventoryItem.category}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Available:</span>
+                                        <span className="font-semibold text-primary-600">{selectedInventoryItem.quantity}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Expires:</span>
+                                        <span className="font-semibold">{formatDate(selectedInventoryItem.expiryDate)}</span>
+                                    </div>
+                                </div>
+                            </Card>
+                        )}
+
                         <Input
-                            label="Quantity"
+                            label={`Quantity to Consume ${selectedInventoryItem ? `(Max: ${selectedInventoryItem.quantity})` : ''}`}
                             type="number"
                             name="quantity"
                             value={formData.quantity}
                             onChange={handleChange}
                             error={errors.quantity}
-                            min="0"
+                            min="1"
+                            max={selectedInventoryItem?.quantity || undefined}
                             required
                         />
 
@@ -304,60 +410,62 @@ export const ConsumptionLogs = () => {
                 </Modal>
 
                 {/* Filters */}
-                <div className="mb-6">
-                    <div className="mb-4">
-                        <p className="text-sm font-medium text-gray-700 mb-2">Date Range</p>
-                        <div className="flex flex-wrap gap-2">
-                            {[
-                                { key: 'all', label: 'All Time' },
-                                { key: 'month', label: 'This Month' },
-                                { key: 'week', label: 'This Week' },
-                                { key: 'today', label: 'Today' },
-                            ].map((range) => (
-                                <button
-                                    key={range.key}
-                                    onClick={() => setDateRange(range.key)}
-                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                                        dateRange === range.key
-                                            ? 'bg-primary-600 text-white'
-                                            : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                                    }`}
-                                >
-                                    {range.label}
-                                </button>
-                            ))}
+                {logs.length > 0 && (
+                    <div className="mb-6">
+                        <div className="mb-4">
+                            <p className="text-sm font-medium text-gray-700 mb-2">Date Range</p>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { key: 'all', label: 'All Time' },
+                                    { key: 'month', label: 'This Month' },
+                                    { key: 'week', label: 'This Week' },
+                                    { key: 'today', label: 'Today' },
+                                ].map((range) => (
+                                    <button
+                                        key={range.key}
+                                        onClick={() => setDateRange(range.key)}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                            dateRange === range.key
+                                                ? 'bg-primary-600 text-white'
+                                                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                                        }`}
+                                    >
+                                        {range.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <p className="text-sm font-medium text-gray-700 mb-2">Category</p>
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                onClick={() => setFilterCategory('All')}
-                                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                                    filterCategory === 'All'
-                                        ? 'bg-primary-600 text-white'
-                                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                                }`}
-                            >
-                                All
-                            </button>
-                            {CATEGORIES.map((cat) => (
+                        <div>
+                            <p className="text-sm font-medium text-gray-700 mb-2">Category</p>
+                            <div className="flex flex-wrap gap-2">
                                 <button
-                                    key={cat}
-                                    onClick={() => setFilterCategory(cat)}
+                                    onClick={() => setFilterCategory('All')}
                                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                                        filterCategory === cat
+                                        filterCategory === 'All'
                                             ? 'bg-primary-600 text-white'
                                             : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                                     }`}
                                 >
-                                    {cat}
+                                    All
                                 </button>
-                            ))}
+                                {CATEGORIES.map((cat) => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setFilterCategory(cat)}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                            filterCategory === cat
+                                                ? 'bg-primary-600 text-white'
+                                                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                                        }`}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* Logs List */}
                 {loading ? (

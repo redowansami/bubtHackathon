@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+const axios = require('axios');
 const { OPENROUTER_API_KEY } = require('../config/constants');
 const foodKnowledgeBase = require('../utils/foodKnowledgeBase');
 const sessionManager = require('../utils/SessionMemoryManager');
@@ -27,27 +27,19 @@ class ChatbotService {
                 payload.reasoning = { enabled: true };
             }
 
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
+            const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', payload, {
                 headers: {
                     'Authorization': `Bearer ${this.apiKey}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(payload),
+                timeout: 30000,
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(`OpenRouter API Error: ${error.message}`);
-            }
-
-            const result = await response.json();
-
-            if (!result.choices || result.choices.length === 0) {
+            if (!response.data.choices || response.data.choices.length === 0) {
                 throw new Error('No response from OpenRouter API');
             }
 
-            return result.choices[0].message;
+            return response.data.choices[0].message;
         } catch (error) {
             console.error('API Error:', error.message);
             throw error;

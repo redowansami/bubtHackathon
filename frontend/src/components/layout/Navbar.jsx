@@ -57,6 +57,12 @@ export const Navbar = () => {
                                     Resources
                                 </Link>
                                 <Link
+                                    to="/risk-prediction"
+                                    className="hover:text-primary-100 transition-colors"
+                                >
+                                    Risk Prediction
+                                </Link>
+                                <Link
                                     to="/profile"
                                     className="hover:text-primary-100 transition-colors"
                                 >
@@ -132,6 +138,13 @@ export const Navbar = () => {
                                     onClick={() => setIsMenuOpen(false)}
                                 >
                                     Resources
+                                </Link>
+                                <Link
+                                    to="/risk-prediction"
+                                    className="block px-4 py-2 hover:bg-primary-700 rounded transition-colors"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    Risk Prediction
                                 </Link>
                                 <Link
                                     to="/profile"

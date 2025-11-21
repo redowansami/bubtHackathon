@@ -7,11 +7,6 @@ const consumptionSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'User ID is required'],
     },
-    inventoryItemId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Inventory',
-      required: [true, 'Inventory item ID is required'],
-    },
     itemName: {
       type: String,
       required: [true, 'Item name is required'],

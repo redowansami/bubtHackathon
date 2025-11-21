@@ -8,52 +8,38 @@ class ConsumptionService {
    */
   async logConsumption(userId, consumptionData) {
     try {
-      const { inventoryItemId, quantity, itemName, category, date, notes } = consumptionData;
-
-      // Check if inventory item exists and belongs to the user
-      const inventoryItem = await InventoryRepository.findById(inventoryItemId);
-
-      if (!inventoryItem || inventoryItem.userId.toString() !== userId) {
-        return {
-          success: false,
-          message: 'Inventory item not found',
-          statusCode: 404,
-        };
-      }
-
-      // Validate that quantity doesn't exceed available inventory
-      if (quantity > inventoryItem.quantity) {
-        return {
-          success: false,
-          message: `Insufficient quantity. Available: ${inventoryItem.quantity}, Requested: ${quantity}`,
-          statusCode: 400,
-        };
-      }
-
       // Create consumption log
       const log = await ConsumptionRepository.create({
         userId,
-        inventoryItemId,
-        itemName,
-        category,
-        quantity,
-        date: date || new Date(),
-        notes: notes || '',
+        itemName: consumptionData.itemName,
+        category: consumptionData.category,
+        quantity: consumptionData.quantity,
+        date: consumptionData.date || new Date(),
+        notes: consumptionData.notes || '',
       });
 
       // Decrease inventory quantity
-      const newQuantity = inventoryItem.quantity - quantity;
-      
-      // Delete item if quantity reaches zero, otherwise update
-      if (newQuantity === 0) {
-        await InventoryRepository.deleteById(inventoryItemId);
-      } else {
-        await InventoryRepository.updateById(inventoryItemId, { quantity: newQuantity });
+      const inventoryItems = await InventoryRepository.findByUserId(userId);
+      const matchingItem = inventoryItems.find(
+        item => item.itemName.toLowerCase() === consumptionData.itemName.toLowerCase()
+      );
+
+      if (matchingItem) {
+        const newQuantity = Math.max(0, matchingItem.quantity - consumptionData.quantity);
+        
+        // Delete item if quantity becomes zero
+        if (newQuantity === 0) {
+          await InventoryRepository.deleteById(matchingItem._id);
+        } else {
+          await InventoryRepository.updateById(matchingItem._id, {
+            quantity: newQuantity,
+          });
+        }
       }
 
       return {
         success: true,
-        message: 'Consumption logged successfully',
+        message: 'Consumption logged and inventory updated',
         statusCode: 201,
         data: log,
       };
@@ -169,39 +155,6 @@ class ConsumptionService {
         };
       }
 
-      const inventoryItem = await InventoryRepository.findById(log.inventoryItemId);
-      if (!inventoryItem) {
-        return {
-          success: false,
-          message: 'Associated inventory item not found',
-          statusCode: 404,
-        };
-      }
-
-      // If quantity is being updated, validate and adjust inventory
-      if (updateData.quantity && updateData.quantity !== log.quantity) {
-        const quantityDifference = updateData.quantity - log.quantity;
-
-        // Check if there's enough inventory to increase consumption
-        if (quantityDifference > 0 && quantityDifference > inventoryItem.quantity) {
-          return {
-            success: false,
-            message: `Insufficient quantity to update. Available: ${inventoryItem.quantity}, Additional needed: ${quantityDifference}`,
-            statusCode: 400,
-          };
-        }
-
-        // Adjust inventory
-        const newQuantity = inventoryItem.quantity - quantityDifference;
-        
-        // Delete item if quantity reaches zero, otherwise update
-        if (newQuantity === 0) {
-          await InventoryRepository.deleteById(log.inventoryItemId);
-        } else {
-          await InventoryRepository.updateById(log.inventoryItemId, { quantity: newQuantity });
-        }
-      }
-
       const updatedLog = await ConsumptionRepository.updateById(logId, updateData);
 
       return {
@@ -234,18 +187,11 @@ class ConsumptionService {
         };
       }
 
-      const inventoryItem = await InventoryRepository.findById(log.inventoryItemId);
-      if (inventoryItem) {
-        // Restore inventory quantity when log is deleted
-        const restoredQuantity = inventoryItem.quantity + log.quantity;
-        await InventoryRepository.updateById(log.inventoryItemId, { quantity: restoredQuantity });
-      }
-
       await ConsumptionRepository.deleteById(logId);
 
       return {
         success: true,
-        message: 'Log deleted and inventory restored',
+        message: 'Log deleted',
         statusCode: 200,
       };
     } catch (error) {

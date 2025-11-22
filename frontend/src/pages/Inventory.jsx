@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Edit2, Plus, AlertCircle } from 'lucide-react';
+import { Trash2, Edit2, Plus, AlertCircle, Image } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -7,7 +7,10 @@ import Input from '../components/common/Input';
 import Modal from '../components/common/Modal';
 import Layout from '../components/layout/Layout';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
+import FileUpload from '../components/FileUpload/FileUpload';
+import UploadedFiles from '../components/UploadedFiles/UploadedFiles';
 import inventoryService from '../services/inventoryService';
+import uploadService from '../services/uploadService';
 import { formatDate, formatCurrency } from '../utils/constants';
 
 const CATEGORIES = [
@@ -28,9 +31,12 @@ export const Inventory = () => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [errors, setErrors] = useState({});
     const [filterCategory, setFilterCategory] = useState('All');
+    const [selectedItemForUpload, setSelectedItemForUpload] = useState(null);
+    const [itemUploads, setItemUploads] = useState({});
     const [formData, setFormData] = useState({
         itemName: '',
         category: 'Vegetables',
@@ -188,16 +194,23 @@ export const Inventory = () => {
                         <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
                         <p className="text-gray-600 mt-2">Track and manage your food items</p>
                     </div>
-                    <Button
-                        onClick={() => {
-                            resetForm();
-                            setIsModalOpen(true);
-                        }}
-                        className="mt-4 md:mt-0"
-                    >
-                        <Plus size={20} />
-                        Add Item
-                    </Button>
+                    <div className="flex gap-3 mt-4 md:mt-0">
+                        <Button
+                            onClick={() => {
+                                resetForm();
+                                setIsModalOpen(true);
+                            }}
+                        >
+                            <Plus size={20} />
+                            Add Item
+                        </Button>
+                        <Button
+                            onClick={() => setIsUploadModalOpen(true)}
+                            variant="secondary"
+                        >
+                            📁 Upload Photo
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Add/Edit Modal */}
@@ -295,6 +308,38 @@ export const Inventory = () => {
                             </Button>
                         </div>
                     </form>
+                </Modal>
+
+                {/* File Upload Modal */}
+                <Modal
+                    isOpen={isUploadModalOpen}
+                    onClose={() => setIsUploadModalOpen(false)}
+                    title="📁 Upload Inventory Photos"
+                >
+                    <div className="space-y-6">
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-900 mb-3">Upload Photos</h4>
+                            <FileUpload
+                                onUploadSuccess={(files) => {
+                                    toast.success(`✅ ${files.length} file(s) uploaded successfully!`);
+                                    setTimeout(() => setIsUploadModalOpen(false), 1500);
+                                }}
+                                onUploadError={(error) => {
+                                    toast.error(`❌ Upload failed: ${error}`);
+                                }}
+                                associatedType="inventory"
+                                multiple={true}
+                            />
+                        </div>
+                        
+                        <div className="border-t pt-6">
+                            <h4 className="text-sm font-semibold text-gray-900 mb-3">Your Uploaded Files</h4>
+                            <UploadedFiles
+                                associatedType="inventory"
+                                showStats={false}
+                            />
+                        </div>
+                    </div>
                 </Modal>
 
                 {/* Filter */}
